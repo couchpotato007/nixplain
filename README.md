@@ -1,11 +1,13 @@
+This vibecoded slop only public that i can easly install it on my machines
+
 # nixplain
 
 Better error messages for Nix. Prototype.
 
 nixplain wraps `nix build` and NixOS rebuilds. Nix runs as usual. Only when
 something fails does nixplain start an instrumented second run and print a
-rustc-style diagnostic: what broke, why it affects you, where in your code,
-and a fix written as Nix code.
+rustc-style diagnostic: what broke, why it affects you, where in your code, and
+a fix written as Nix code.
 
 ```
 error[meta/insecure]: olm-3.2.16 is marked as insecure
@@ -65,8 +67,8 @@ As a flake input:
 
 Or ad hoc: `nix run github:OWNER/nixplain -- build .#pkg`.
 
-nixplain uses `nix`, `nix-store` and `git` from `PATH` so that it talks to
-the same Nix you run; the package does not bundle them.
+nixplain uses `nix`, `nix-store` and `git` from `PATH` so that it talks to the
+same Nix you run; the package does not bundle them.
 
 ## Usage
 
@@ -81,28 +83,28 @@ nixplain explain meta/insecure             # long explanation of a code
 Global flags go **before** the subcommand, because everything after the
 installable is passed to Nix:
 
-| flag | |
-|---|---|
-| `--json` | diagnostics as JSON (file/line/column, edits) for CI and editors |
-| `--short` | one line per error |
-| `--fix` | apply machine-applicable fixes (currently: outdated hashes) |
-| `--no-rerun` | skip the diagnostic second run, use only the log |
+| flag                         |                                                                                                                                                                                   |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--json`                     | diagnostics as JSON (file/line/column, edits) for CI and editors                                                                                                                  |
+| `--short`                    | one line per error                                                                                                                                                                |
+| `--fix`                      | apply machine-applicable fixes (currently: outdated hashes)                                                                                                                       |
+| `--no-rerun`                 | skip the diagnostic second run, use only the log                                                                                                                                  |
 | `--show-trace[=full\|short]` | print Nix's own error with its trace before the diagnosis: `full` exactly as Nix prints it, `short` one line per frame with frames in your files marked `▶` (`--raw` is an alias) |
-| `--save-log FILE` | keep the internal-json log (for `diagnose` and bug reports) |
+| `--save-log FILE`            | keep the internal-json log (for `diagnose` and bug reports)                                                                                                                       |
 
-`nixplain os switch` builds the system, then does what nixos-rebuild does:
-it sets the system profile and runs `switch-to-configuration` (via sudo when
-not root).
+`nixplain os switch` builds the system, then does what nixos-rebuild does: it
+sets the system profile and runs `switch-to-configuration` (via sudo when not
+root).
 
 ## What it diagnoses
 
-| class | code | how |
-|---|---|---|
-| A meta | `meta/insecure`, `unfree`, `broken`, … | re-evaluates through `extendModules` with checks relaxed, walks the drv graph (`nix-store --query --graph`), maps entry points to `environment.systemPackages` / `users.users.*.packages` / home-manager `home.packages` definitions or to the `services.*` that created a systemd unit |
-| B eval | `eval/type`, `infinite-recursion`, `missing-attribute`, `undefined-variable`, `missing-argument`, `unexpected-argument`, `callpackage-argument`, `syntax`, `throw` | blame boundary: innermost trace frame in *your* files, the call site for argument errors, the missing `;` for syntax errors, package-name suggestions for `pkgs.helo`, hints for common mistakes (`mapAttrs` on a list, `config` in `imports`, an option defined through itself) |
-| C modules | `module/unknown-option`, `conflict`, `type`, `undefined`, `assertion` | finds the exact line that sets the option (also nested attribute sets and list entries); failed assertions point at the options they name |
-| D build | `build/configure`, `compile`, `check`, `install`, `no-output` | the first real error line with context instead of the last 25 lines, the failing phase, your own package or your override of a nixpkgs package, diff against the same package in your last good system generation (incl. the compiler from stdenv). Deliberately no per-build-system rules. |
-| E fetch | `fetch/hash` | finds the old hash in your files in any encoding (also `lib.fakeHash`), notes cargo/vendor hashes, `--fix` replaces it in the same encoding |
+| class     | code                                                                                                                                                               | how                                                                                                                                                                                                                                                                                         |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A meta    | `meta/insecure`, `unfree`, `broken`, …                                                                                                                             | re-evaluates through `extendModules` with checks relaxed, walks the drv graph (`nix-store --query --graph`), maps entry points to `environment.systemPackages` / `users.users.*.packages` / home-manager `home.packages` definitions or to the `services.*` that created a systemd unit     |
+| B eval    | `eval/type`, `infinite-recursion`, `missing-attribute`, `undefined-variable`, `missing-argument`, `unexpected-argument`, `callpackage-argument`, `syntax`, `throw` | blame boundary: innermost trace frame in _your_ files, the call site for argument errors, the missing `;` for syntax errors, package-name suggestions for `pkgs.helo`, hints for common mistakes (`mapAttrs` on a list, `config` in `imports`, an option defined through itself)            |
+| C modules | `module/unknown-option`, `conflict`, `type`, `undefined`, `assertion`                                                                                              | finds the exact line that sets the option (also nested attribute sets and list entries); failed assertions point at the options they name                                                                                                                                                   |
+| D build   | `build/configure`, `compile`, `check`, `install`, `no-output`                                                                                                      | the first real error line with context instead of the last 25 lines, the failing phase, your own package or your override of a nixpkgs package, diff against the same package in your last good system generation (incl. the compiler from stdenv). Deliberately no per-build-system rules. |
+| E fetch   | `fetch/hash`                                                                                                                                                       | finds the old hash in your files in any encoding (also `lib.fakeHash`), notes cargo/vendor hashes, `--fix` replaces it in the same encoding                                                                                                                                                 |
 
 ## Layout
 
@@ -124,8 +126,8 @@ examples/demo/             a flake that triggers every class
 
 ## Try it
 
-`examples/demo` is a flake with one broken NixOS host or package for every
-error nixplain explains (36 cases, see its README):
+`examples/demo` is a flake with one broken NixOS host or package for every error
+nixplain explains (36 cases, see its README):
 
 ```sh
 cargo build
@@ -145,8 +147,8 @@ Tests: `cargo test`. The baseline-diff test needs a NixOS system profile:
 
 - The diagnostic run uses `--impure` (for `builtins.getFlake` on a local path
   and the `NIXPKGS_ALLOW_*` fallback when `nixpkgs.pkgs` is set).
-- home-manager provenance inside NixOS needs nixpkgs 25.11 or newer
-  (`valueMeta` on submodules).
+- home-manager provenance inside NixOS needs nixpkgs 25.11 or newer (`valueMeta`
+  on submodules).
 - Finding the first error line in a build log is a heuristic (one regex).
 - Not built yet from the design: lib contracts, `--debugger` replay, source
   rewriting, the evaluator patch, Hydra status lookup.
