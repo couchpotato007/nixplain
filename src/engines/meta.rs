@@ -202,8 +202,16 @@ fn permit_fix(m: &MetaError, nixos: bool) -> Fix {
             return Fix::text("see the full Nix message (--raw) for how to allow it");
         }
     };
+    // A `meta.problems.broken` that nixpkgs set by hand (not `meta.broken`)
+    // is not covered by NIXPKGS_ALLOW_BROKEN, only by `config.problems`.
+    let manual_problem = m.kind == Kind::Broken && m.reason.as_deref().is_some_and(|r| r != "This package is broken.");
     if nixos {
         Fix::code(title, nixos_code)
+    } else if manual_problem {
+        Fix::code(
+            format!("{title}: add this to the config you import nixpkgs with"),
+            format!("config.problems.handlers.{}.broken = \"warn\";", nix_ident(&pn)),
+        )
     } else {
         Fix::code(
             format!("{title} for one invocation"),

@@ -43,7 +43,7 @@ pub fn pname(name: &str) -> String {
 
 /// Run a command, return stdout. Stderr is captured and included in the error.
 pub fn run(cmd: &mut Command) -> Result<String> {
-    let desc = format!("{cmd:?}");
+    let desc = describe(cmd);
     let out = cmd
         .stdin(Stdio::null())
         .output()
@@ -55,6 +55,21 @@ pub fn run(cmd: &mut Command) -> Result<String> {
         bail!("{desc} failed:\n{}", tail.join("\n"));
     }
     Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+}
+
+/// `nix eval --json --impure --expr <…>`: the command without environment
+/// and with long arguments (generated Nix expressions) elided.
+fn describe(cmd: &Command) -> String {
+    let mut parts = vec![cmd.get_program().to_string_lossy().into_owned()];
+    let mut args = cmd.get_args().map(|a| a.to_string_lossy().into_owned()).peekable();
+    while let Some(a) = args.next() {
+        if a == "--extra-experimental-features" {
+            args.next();
+            continue;
+        }
+        parts.push(if a.len() > 80 || a.contains('\n') { "<…>".into() } else { a });
+    }
+    format!("`{}`", parts.join(" "))
 }
 
 /// A `nix` command with the experimental features nixplain relies on.

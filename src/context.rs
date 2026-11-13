@@ -20,6 +20,38 @@ pub enum Target {
 }
 
 impl Target {
+    /// A flake installable; `…#nixosConfigurations.<host>[.config.system.build.toplevel]`
+    /// and `…#homeConfigurations.<user>[.activationPackage]` become NixOS and
+    /// home targets, so they get the same diagnosis as `nixplain os`/`home`.
+    pub fn from_installable(i: &str) -> Target {
+        let Some((flake, attr)) = i.split_once('#') else {
+            return Target::Installable(i.to_string());
+        };
+        let flake = if flake.is_empty() { "." } else { flake };
+        let segment = |s: &str| -> Option<(String, String)> {
+            if let Some(q) = s.strip_prefix('"') {
+                let (name, rest) = q.split_once('"')?;
+                Some((name.to_string(), rest.to_string()))
+            } else {
+                let (name, rest) = s.split_at(s.find('.').unwrap_or(s.len()));
+                (!name.is_empty()).then(|| (name.to_string(), rest.to_string()))
+            }
+        };
+        if let Some(r) = attr.strip_prefix("nixosConfigurations.")
+            && let Some((host, rest)) = segment(r)
+            && (rest.is_empty() || rest == ".config.system.build.toplevel")
+        {
+            return Target::Nixos { flake: flake.to_string(), host };
+        }
+        if let Some(r) = attr.strip_prefix("homeConfigurations.")
+            && let Some((user, rest)) = segment(r)
+            && (rest.is_empty() || rest == ".activationPackage")
+        {
+            return Target::Home { flake: flake.to_string(), user };
+        }
+        Target::Installable(i.to_string())
+    }
+
     pub fn toplevel_attr(&self) -> Option<String> {
         match self {
             Target::Nixos { flake, host } => Some(format!(
@@ -392,5 +424,22 @@ mod tests {
             own.locate("/nix/store/bbbb-source/modules/x.nix").display,
             "<home-manager>/modules/x.nix"
         );
+    }
+}
+
+#[cfg(test)]
+mod target_tests {
+    use super::Target;
+
+    #[test]
+    fn installable_to_nixos() {
+        let t = Target::from_installable("/home/u/.dotfiles#nixosConfigurations.windoof.config.system.build.toplevel");
+        assert!(matches!(t, Target::Nixos { ref flake, ref host } if flake == "/home/u/.dotfiles" && host == "windoof"));
+        let t = Target::from_installable(".#nixosConfigurations.\"my.host\"");
+        assert!(matches!(t, Target::Nixos { ref host, .. } if host == "my.host"));
+        let t = Target::from_installable("#homeConfigurations.alice.activationPackage");
+        assert!(matches!(t, Target::Home { ref flake, ref user } if flake == "." && user == "alice"));
+        assert!(matches!(Target::from_installable(".#nixosConfigurations.x.config.foo"), Target::Installable(_)));
+        assert!(matches!(Target::from_installable("nixpkgs#hello"), Target::Installable(_)));
     }
 }

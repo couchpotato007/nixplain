@@ -204,8 +204,8 @@ fn real_main(cli: &Cli) -> Result<ExitCode> {
                     flake: f.clone(),
                     host: h.clone(),
                 },
-                (Some(f), None, _) => Target::Installable(f.clone()),
-                (_, _, Some(i)) => Target::Installable(i.clone()),
+                (Some(f), None, _) => Target::from_installable(f),
+                (_, _, Some(i)) => Target::from_installable(i),
                 _ => Target::Unknown,
             };
             let text = std::fs::read_to_string(log)?;
@@ -214,7 +214,7 @@ fn real_main(cli: &Cli) -> Result<ExitCode> {
             Ok(ExitCode::from(1))
         }
         Cmd::Build { installable, nix_args } => {
-            let target = Target::Installable(installable.clone());
+            let target = Target::from_installable(installable);
             let mut args = vec!["build".to_string(), installable.clone()];
             args.extend(nix_args.iter().cloned());
             let out = runner::run_nix(&args, cli.save_log.as_deref())?;

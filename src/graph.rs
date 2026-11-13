@@ -34,38 +34,42 @@ pub struct SystemEval {
     pub provenance: Vec<ProvDef>,
 }
 
-/// Nix expression for the instrumented NixOS evaluation. The user's files
-/// are untouched; we only add a module through `extendModules`.
-fn nixos_expr(flake: &str, host: &str) -> String {
-    format!(
-        r#"
-let
-  flake = builtins.getFlake {flake};
-  base = flake.nixosConfigurations.{host};
-  sys = base.extendModules {{
-    modules = [ {{
-      nixpkgs.config = {{
+/// Function applied (`nix eval --apply`) to `nixosConfigurations.<host>` for
+/// the instrumented evaluation. The user's files are untouched; we only add a
+/// module through `extendModules`. Pure: no `--impure`, no `getFlake`.
+const NIXOS_APPLY: &str = r#"
+base: let
+  sys = base.extendModules {
+    modules = [ ({ lib, modulesPath, ... }: {
+      nixpkgs.config = {
         allowInsecurePredicate = _: true;
         allowUnfree = true;
         allowBroken = true;
         allowUnsupportedSystem = true;
         allowNonSource = true;
-      }};
-    }} ];
-  }};
+      }
+      # nixpkgs 26.05+: `meta.problems` (e.g. a manual `broken`) is not covered
+      # by allowBroken, and the default `broken -> error` matcher outranks any
+      # matcher we add, so replace them all (unmatched problems are ignored)
+      // lib.optionalAttrs (builtins.pathExists (modulesPath + "/../../pkgs/stdenv/generic/problems.nix")) {
+        problems.matchers = lib.mkForce [ ];
+        problems.handlers = lib.mkForce { };
+      };
+    }) ];
+  };
   safeName = p: let r = builtins.tryEval (if builtins.isAttrs p then p.name or null else null);
                 in if r.success then r.value else null;
   names = v: if builtins.isList v then map safeName v else [ ];
   fromOption = option: opt:
-    map (d: {{ inherit option; file = d.file; names = names d.value; }}) opt.definitionsWithLocations;
+    map (d: { inherit option; file = d.file; names = names d.value; }) opt.definitionsWithLocations;
   userPackages =
     let
       r = builtins.tryEval (builtins.concatMap (d:
         if builtins.isAttrs d.value then
           builtins.concatMap (u:
-            let v = d.value.${{u}}; in
+            let v = d.value.${u}; in
             if builtins.isAttrs v && v ? packages then
-              [ {{ option = "users.users.${{u}}.packages"; file = d.file; names = names v.packages; }} ]
+              [ { option = "users.users.${u}.packages"; file = d.file; names = names v.packages; } ]
             else [ ])
           (builtins.attrNames d.value)
         else [ ]) sys.options.users.users.definitionsWithLocations);
@@ -73,22 +77,18 @@ let
   # home-manager as a NixOS module: every user's home.packages, through the
   # submodule evaluation that `valueMeta` exposes (nixpkgs 25.11+)
   hmUsers =
-    let r = builtins.tryEval (sys.options.home-manager.users.valueMeta.attrs or {{ }});
-    in if sys.options ? home-manager && r.success then r.value else {{ }};
+    let r = builtins.tryEval (sys.options.home-manager.users.valueMeta.attrs or { });
+    in if sys.options ? home-manager && r.success then r.value else { };
   homePackages = builtins.concatMap (u:
-    let c = hmUsers.${{u}}.configuration or null; in
+    let c = hmUsers.${u}.configuration or null; in
     if c == null || !(c.options ? home) then [ ]
-    else fromOption "home-manager.users.${{u}}.home.packages" c.options.home.packages)
+    else fromOption "home-manager.users.${u}.home.packages" c.options.home.packages)
     (builtins.attrNames hmUsers);
-in {{
+in {
   toplevel = sys.config.system.build.toplevel.drvPath;
   provenance = fromOption "environment.systemPackages" sys.options.environment.systemPackages
     ++ userPackages ++ homePackages;
-}}"#,
-        flake = nix_str(flake),
-        host = nix_str(host),
-    )
-}
+}"#;
 
 /// Standalone home-manager: `homeConfigurations.<user>`.
 fn home_expr(flake: &str, user: &str) -> String {
@@ -137,10 +137,20 @@ pub fn evaluate(target: &Target) -> Result<SystemEval> {
             let flake_ref = local_flake_dir(flake)
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|| flake.clone());
-            let mut cmd = nix();
-            cmd.args(["eval", "--json", "--impure", "--expr", &nixos_expr(&flake_ref, host)]);
-            cmd.envs(RELAX_ENV.iter().copied());
-            let out = run(&mut cmd).context("diagnostic evaluation of the NixOS configuration failed")?;
+            let attr = format!("{flake_ref}#nixosConfigurations.{}", nix_str(host));
+            let eval = |impure: bool| {
+                let mut cmd = nix();
+                cmd.args(["eval", "--json", &attr, "--apply", NIXOS_APPLY]);
+                if impure {
+                    cmd.arg("--impure").envs(RELAX_ENV.iter().copied());
+                }
+                run(&mut cmd)
+            };
+            // Pure first. With `nixpkgs.pkgs` set, `nixpkgs.config` is ignored and
+            // only the environment variables (which need --impure) can help.
+            let out = eval(false)
+                .or_else(|_| eval(true))
+                .context("diagnostic evaluation of the NixOS configuration failed")?;
             #[derive(Deserialize)]
             struct Out {
                 toplevel: String,
