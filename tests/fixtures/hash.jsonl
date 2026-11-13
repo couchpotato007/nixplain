@@ -1,0 +1,11 @@
+@nix {"action":"start","fields":["/nix/store/i8qwnm0x8072a227wwh96vwlrdxck7qg-README.md.drv","",1,1],"id":7673839542599692,"level":3,"parent":0,"text":"building '/nix/store/i8qwnm0x8072a227wwh96vwlrdxck7qg-README.md.drv'","type":105}
+@nix {"action":"result","fields":[""],"id":7673839542599692,"type":101}
+@nix {"action":"result","fields":["trying https://raw.githubusercontent.com/NixOS/nixpkgs/master/README.md"],"id":7673839542599692,"type":101}
+@nix {"action":"result","fields":["  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current"],"id":7673839542599692,"type":101}
+@nix {"action":"result","fields":["                                 Dload  Upload  Total   Spent   Left   Speed"],"id":7673839542599692,"type":101}
+@nix {"action":"result","fields":[""],"id":7673839542599692,"type":101}
+@nix {"action":"result","fields":["  0      0   0      0   0      0      0      0                              0"],"id":7673839542599692,"type":101}
+@nix {"action":"result","fields":["100   5200 100   5200   0      0  18925      0                              0"],"id":7673839542599692,"type":101}
+@nix {"action":"result","fields":["100   5200 100   5200   0      0  18924      0                              0"],"id":7673839542599692,"type":101}
+@nix {"action":"result","fields":["100   5200 100   5200   0      0  18922      0                              0"],"id":7673839542599692,"type":101}
+@nix {"action":"msg","column":null,"file":null,"level":0,"line":null,"msg":"\u001b[31;1merror:\u001b[0m hash mismatch in fixed-output derivation '\u001b[35;1m/nix/store/i8qwnm0x8072a227wwh96vwlrdxck7qg-README.md.drv\u001b[0m':\n         specified: \u001b[35;1msha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\u001b[0m\n            got:    \u001b[35;1msha256-RLkidqDUEmvxmhVv3JgudbiHRE3GL3eq0XkIPXEwl2M=\u001b[0m","raw_msg":"hash mismatch in fixed-output derivation '\u001b[35;1m/nix/store/i8qwnm0x8072a227wwh96vwlrdxck7qg-README.md.drv\u001b[0m':\n  specified: \u001b[35;1msha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\u001b[0m\n     got:    \u001b[35;1msha256-RLkidqDUEmvxmhVv3JgudbiHRE3GL3eq0XkIPXEwl2M=\u001b[0m"}
